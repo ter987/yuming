@@ -37,7 +37,7 @@
 	//var_dump($baidu_m);exit();
 	$url = 'http://www.baidu.com/link?url=z9zPJRjYg6eTzvqgu71fJ9E0z57wM1VTzHZ4zXt63ywAo7QrjZP6cs5uYH3eQkv7bmOIkJzwD1PU_b60V4rNwFZT2G4bEf8tUP3n7Ed0iyS';
 	$stream = file_get_contents($url);
-	$encode = mb_detect_encoding($stream,array('GB2312','GBK','UTF-8'));
+	$encode = mb_detect_encoding($stream,array('GB2312','GBK','UTF-8'),true);
 	//echo $encode;exit;
 	if($encode=="GB2312" || $encode=='CP936')
 	{
@@ -56,6 +56,9 @@
 			$val = strip_tags($val);
 			if(empty($val)) continue;
 			$pinyin = toPinyin($val, 'utf-8',$dics);
+			if(preg_match("/[^a-z0-9-]/",$pinyin)){
+				continue;
+			}
 			$suffix = array('.com','.cn','.net');
 			if(strlen($pinyin)<10){
 				foreach($suffix as $v){
@@ -76,7 +79,7 @@
 						}else{
 							$netPrice = $info['result'][0]['yes'][0]['price'];
 						}
-						$domain[] = array('com_price'=>$comPrice,'cn_price'=>$cnPrice,'net_price'=>$netPrice,'pinyin'=>$pinyin,'update_time'=>time());
+						$domain[] = array('com_price'=>$comPrice,'cn_price'=>$cnPrice,'net_price'=>$netPrice,'pinyin'=>$pinyin,'hanzi'=>$val,'update_time'=>time());
 						$domains = array_merge($domain,$domains);
 					}
 				}
@@ -90,6 +93,17 @@
 		if(!mysql_num_rows($result)){
 			$query = 'INSERT INTO dics (pinyin,com_price,cn_price,net_price,update_time) VALUES('."'".$val['pinyin']."'".','.$val['com_price'].','.$val['cn_price'].','.$val['net_price'].','.$val['update_time'].')';
 			mysql_query($query) or die(mysql_error());
+			$id = mysql_insert_id();
+			
+			$query = "INSERT INTO hanzi(hanzi,dics_id) VALUES('".$val['hanzi']."',$id)";
+			mysql_query($query) or die(mysql_error());
+		}else{
+			$_result = mysql_query("SELECT * FROM hanzi WHERE hanzi='".$val['hanzi']."'");
+			$row = mysql_fetch_row($result);
+			if(!mysql_num_rows($_result)){
+				$query = "INSERT INTO hanzi(hanzi,dics_id) VALUES('".$val['hanzi']."',".$row['id'].")";
+				mysql_query($query) or die(mysql_error());
+			}
 		}
 		
 	}
